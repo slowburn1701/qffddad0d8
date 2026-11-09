@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="robots" content="noindex, nofollow">
+  <title>飞行棋 · 功能页</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "PingFang SC", sans-serif;
+      background: #F7F1EA;
+      color: #3D3429;
+      min-height: 100vh;
+      padding: 12px 14px 28px;
+    }
+    .page-head {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 6px;
+    }
+    .page-head h1 { font-size: 1.15rem; font-weight: 700; }
+    .page-sub {
+      font-size: 0.78rem; color: #9A8F82; margin-bottom: 12px;
+    }
+    .toolbar {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 12px;
+    }
+    .version-scroll {
+      flex: 1; min-width: 0;
+      display: flex; gap: 6px;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+    }
+    .version-scroll::-webkit-scrollbar { display: none; }
+    .ver-btn {
+      flex-shrink: 0;
+      border: 1px solid #E8DFD6;
+      background: #fff;
+      color: #6B5E52;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .ver-btn.active {
+      background: #E8DFD6;
+      color: #3D3429;
+      font-weight: 600;
+      border-color: #D4C4B0;
+    }
+    .btn-play {
+      flex-shrink: 0;
+      border: none;
+      background: #C4A77D;
+      color: #fff;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-play:active { transform: scale(0.97); }
+    .board-card {
+      background: #FFFCFA;
+      border: 1px solid #EDE4DA;
+      border-radius: 16px;
+      padding: 12px 10px 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    }
+    .board-title {
+      text-align: center;
+      font-size: 0.88rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #5C4F42;
+    }
+    .path {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .cell {
+      aspect-ratio: 1;
+      border-radius: 6px;
+      border: 1px solid #E8DFD6;
+      background: #F7F1EA;
+      /* 原 0.42rem ≈ 6.7px，是按手机窄屏（每格约 45px）定的；桌面按屏宽自适应 */
+      font-size: clamp(12px, 1.05vw, 16px);
+      line-height: 1.35;
+      padding: 6px 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      text-align: center;
+      color: #6B5E52;
+      position: relative;
+      overflow: hidden;
+    }
+    .cell.start, .cell.end { background: #F0E6DC; font-weight: 600; }
+    .cell.special { background: #EDE4DA; }
+    .cell .num {
+      font-size: clamp(10px, 0.8vw, 12px);
+      color: #B5A99C;
+      margin-bottom: 1px;
+    }
+    .piece {
+      position: absolute;
+      bottom: 3px;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      border: 1.5px solid #fff;
+    }
+    .piece.player { background: #C4787A; left: 4px; }
+    .piece.ai { background: #7A9E8E; right: 4px; }
+    .pos-info {
+      text-align: center;
+      font-size: 0.78rem;
+      color: #8A7D70;
+      margin: 12px 4px 10px;
+    }
+    .btn-save {
+      width: 100%;
+      border: 1px solid #E8DFD6;
+      background: #FFFCFA;
+      color: #6B5E52;
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+    .btn-save:active { background: #F7F1EA; }
+    .toast {
+      position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+      background: rgba(61,52,41,0.88); color: #fff;
+      padding: 8px 16px; border-radius: 999px; font-size: 0.8rem;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+      z-index: 50;
+    }
+    .toast.show { opacity: 1; }
+
+    /* ===== 手机窄屏：棋盘改 5 列，格子更大字更清楚 ===== */
+    @media (max-width: 560px) {
+      .path { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+      .cell { font-size: 11px; line-height: 1.25; padding: 5px 3px; }
+      .cell .num { font-size: 9px; }
+    }
+    /* ===== 桌面宽屏适配：限制内容宽度 + 放大基础字号 ===== */
+    @media (min-width: 900px) {
+      body { max-width: 1280px; margin: 0 auto; }
+      .page-head h1 { font-size: 1.5rem; }
+      .page-sub { font-size: 0.92rem; }
+      .ver-btn { font-size: 0.9rem; padding: 8px 16px; }
+      .btn-play { font-size: 0.95rem; padding: 10px 18px; }
+      .board-title { font-size: 1.05rem; }
+      .pos-info { font-size: 0.92rem; }
+      .btn-save { font-size: 1rem; padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== 访问密码：本次会话输入一次即可 ===== -->
+  <div id="gateMask">
+    <div class="gate-card">
+      <div class="gate-title">输入访问密码</div>
+      <input id="gateInput" type="password" autocomplete="off" placeholder="密码">
+      <button id="gateBtn">进入</button>
+      <div id="gateTip"></div>
+    </div>
+  </div>
+  <style>
+    #gateMask{position:fixed;inset:0;z-index:9999;background:#F7F1EA;display:flex;align-items:center;justify-content:center;padding:24px}
+    .gate-card{background:#fff;border:1px solid #E8DFD6;border-radius:16px;padding:22px 20px;width:100%;max-width:320px;box-shadow:0 8px 28px rgba(0,0,0,.08);text-align:center}
+    .gate-title{font-size:16px;font-weight:600;color:#5C4F42;margin-bottom:14px}
+    #gateInput{width:100%;padding:11px 12px;border:1px solid #E8DFD6;border-radius:10px;font-size:15px;text-align:center;outline:none;color:#3D3429}
+    #gateBtn{margin-top:10px;width:100%;padding:11px;border:none;border-radius:10px;background:#C4A77D;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+    #gateTip{margin-top:8px;font-size:13px;color:#C4787A;min-height:18px}
+  </style>
+  <script>
+  (function () {
+    var HASH = '4f67aa1851903b103613c0abae7245fcf53e08b0ddd47568985567e623cef0a1'; /* 口令的 SHA-256，想换密码就换成新口令的哈希 */
+    var KEY = 'fc_gate_ok';
+    var mask = document.getElementById('gateMask');
+    if (!mask) { return; }
+    function unlock() { try { sessionStorage.setItem(KEY, '1'); } catch (e) {} if (mask.parentNode) { mask.parentNode.removeChild(mask); } }
+    try { if (sessionStorage.getItem(KEY) === '1') { unlock(); return; } } catch (e) {}
+    if (location.protocol === 'file:') { unlock(); return; }
+    var input = document.getElementById('gateInput');
+    var tip = document.getElementById('gateTip');
+    function hex(buf) { var b = new Uint8Array(buf), s = '', i; for (i = 0; i < b.length; i++) { s += ('0' + b[i].toString(16)).slice(-2); } return s; }
+    function check() {
+      var v = input.value;
+      if (!v) { tip.textContent = '请输入密码'; return; }
+      if (!(window.crypto && crypto.subtle)) { tip.textContent = '当前环境不支持校验，请用 https 打开'; return; }
+      crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)).then(function (buf) {
+        if (hex(buf) === HASH) { unlock(); }
+        else { tip.textContent = '密码不对，再试试'; input.value = ''; input.focus(); }
+      });
+    }
+    document.getElementById('gateBtn').addEventListener('click', check);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { check(); } });
+    setTimeout(function () { try { input.focus(); } catch (e) {} }, 60);
+  })();
+  </script>
+
+  <div class="page-head"><h1>飞行棋</h1></div>
+  <p class="page-sub">选版本 · 总览棋盘 · 进度在聊天弹窗里玩</p>
+
+  <div class="toolbar">
+    <div class="version-scroll" id="versionBar"></div>
+    <button type="button" class="btn-play" id="btnPlay">在聊天里玩</button>
+  </div>
+
+  <div class="board-card">
+    <div class="board-title" id="boardTitle">—</div>
+    <div class="path" id="boardPath"></div>
+  </div>
+
+  <div class="pos-info" id="posInfo">你：第 0 格 · 小机：第 0 格 · 轮到你</div>
+  <button type="button" class="btn-save" id="btnSave">保存进度</button>
+  <div class="toast" id="toast"></div>
+
+  <script src="boards.js"></script>
+  <script>
+    const BOARDS = window.FLIGHT_CHESS_BOARDS;
+
+    // =====================================================
+    // 游戏状态
+    // lastEvent: 最近一次停下的格子事件（供机提示词注入，建议保留2轮）
+    // =====================================================
+    
+    let state = {
+      version: 'maid',
+      playerPos: 0,
+      aiPos: 0,
+      turn: 'player',
+      finished: false,
+      lastEvent: null
+    };
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 1600);
+    }
+
+    function saveProgress() {
+      localStorage.setItem('flight_chess_player', JSON.stringify(state));
+      // 与弹窗页共用一份进度
+      localStorage.setItem('flight_chess_progress', JSON.stringify(state));
+      toast('进度已保存');
+    }
+
+    function loadProgress() {
+      const raw = localStorage.getItem('flight_chess_progress')
+        || localStorage.getItem('flight_chess_player');
+      if (!raw) return;
+      try {
+        const s = JSON.parse(raw);
+        if (s && BOARDS[s.version]) {
+          state.version = s.version;
+          state.playerPos = s.playerPos || 0;
+          state.aiPos = s.aiPos || 0;
+          state.turn = s.turn || 'player';
+          state.finished = !!s.finished;
+          state.lastEvent = s.lastEvent || null;
+        }
+      } catch (e) {}
+    }
+
+    function renderVersionBar() {
+      const bar = document.getElementById('versionBar');
+      bar.innerHTML = '';
+      Object.keys(BOARDS).forEach(key => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ver-btn' + (state.version === key ? ' active' : '');
+        btn.textContent = BOARDS[key].name;
+        btn.onclick = () => switchVersion(key);
+        bar.appendChild(btn);
+      });
+    }
+
+    function switchVersion(key) {
+      if (!BOARDS[key]) return;
+      if ((state.playerPos > 0 || state.aiPos > 0) && state.version !== key) {
+        if (!confirm('切换版本会重置当前进度，确定吗？')) return;
+        state.playerPos = 0;
+        state.aiPos = 0;
+        state.turn = 'player';
+        state.finished = false;
+        state.lastEvent = null;
+      }
+      state.version = key;
+      renderVersionBar();
+      renderBoard();
+      updateUI();
+      saveProgress();
+    }
+
+    function renderBoard() {
+      const board = BOARDS[state.version];
+      if (!board) return;
+      document.getElementById('boardTitle').textContent =
+        board.name + '（' + board.cells.length + '格）';
+      const path = document.getElementById('boardPath');
+      path.innerHTML = '';
+      board.cells.forEach((cell, i) => {
+        const div = document.createElement('div');
+        div.className = 'cell ' + (cell.type || 'normal');
+        div.innerHTML = '<span class="num">' + i + '</span>' + cell.text;
+        if (state.playerPos === i) {
+          const p = document.createElement('div');
+          p.className = 'piece player';
+          div.appendChild(p);
+        }
+        if (state.aiPos === i) {
+          const a = document.createElement('div');
+          a.className = 'piece ai';
+          div.appendChild(a);
+        }
+        path.appendChild(div);
+      });
+    }
+
+    function updateUI() {
+      const turn = state.finished
+        ? '本局结束'
+        : ('轮到' + (state.turn === 'player' ? '你' : '小机'));
+      document.getElementById('posInfo').textContent =
+        '你：第 ' + state.playerPos + ' 格 · 小机：第 ' + state.aiPos + ' 格 · ' + turn;
+    }
+
+    function goPlayInChat() {
+      saveProgress();
+      // 带上当前版本，弹窗优先按 URL 里的 v 显示，避免只依赖 localStorage
+      window.location.href = 'flight-chess-popup.html?v=' + encodeURIComponent(state.version);
+    }
+
+    document.getElementById('btnPlay').onclick = goPlayInChat;
+    document.getElementById('btnSave').onclick = saveProgress;
+
+    loadProgress();
+    renderVersionBar();
+    renderBoard();
+    updateUI();
+  </script>
+</body>
+</html>
